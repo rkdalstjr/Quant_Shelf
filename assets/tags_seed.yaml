@@ -1,0 +1,56 @@
+groups:
+  finance:
+    - risk-management
+    - portfolio
+    - derivatives
+    - arbitrage
+    - market-microstructure
+    - liquidity
+    - volatility
+  math:
+    - stochastic
+    - probability
+    - optimization
+    - statistics
+    - linear-algebra
+    - calculus
+  strategy:
+    - backtest
+    - alpha
+    - factor
+    - momentum
+    - mean-reversion
+    - execution
+  psychology:
+    - bias
+    - discipline
+    - drawdown
+    - mental-model
+    - patience
+  career:
+    - interview
+    - skill
+    - reading
+    - networking
+    - communication
+  meta:
+    - definition
+    - assumption
+    - insight
+    - advice
+    - counterexample
+
+aliases:
+  risk: risk-management
+  리스크: risk-management
+  리스크관리: risk-management
+  리스크-관리: risk-management
+  vol: volatility
+  변동성: volatility
+  포트폴리오: portfolio
+  백테스트: backtest
+  백테스팅: backtest
+  심리: psychology
+  심리학: psychology
+  커리어: career
+  경력: career

@@ -1,0 +1,30 @@
+paths:
+  db: data/quantshelf.db
+  tts_cache: data/tts_cache
+  exports: data/exports
+
+srs:
+  initial_ease: 2.5
+  min_ease: 1.3
+  max_ease: 3.0
+  max_interval: 365
+  daily_limit: 20
+
+types:
+  - 미분류
+  - 개념
+  - 가정
+  - 조언
+  - 통찰
+  - 시장구조
+  - 멘탈모델
+  - 반례
+  - 커리어
+
+score:
+  min: 1
+  max: 5
+  default: 3
+
+tag:
+  max_length: 40
