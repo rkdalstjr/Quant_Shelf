@@ -1,4 +1,5 @@
 """QuantShelf — Streamlit 진입점. 라우팅만 담당."""
+
 import streamlit as st
 
 from core.db import init_db
@@ -6,8 +7,13 @@ from ui import home, input_page, library_page
 
 st.set_page_config(page_title="QuantShelf", page_icon="📖", layout="wide")
 
-# 스키마 보장 (매 rerun마다 호출해도 IF NOT EXISTS라 안전)
-init_db()
+
+@st.cache_resource(show_spinner=False)
+def _bootstrap():
+    init_db()
+
+
+_bootstrap()
 
 PAGES = {
     "🏠 홈": home.render,

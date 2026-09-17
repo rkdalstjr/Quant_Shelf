@@ -89,15 +89,30 @@ def search_sentences(
     params["offset"] = offset
 
     with get_conn() as conn:
-        rows = _rows(conn.execute(sql, params))
+        rows = [dict(r._mapping) for r in conn.execute(sql, params)]
+        if not rows:
+            return []
+
+        sids = [r["id"] for r in rows]
+        placeholders = ",".join(f":s{i}" for i in range(len(sids)))
+        tag_params = {f"s{i}": sid for i, sid in enumerate(sids)}
+        tag_rows = conn.execute(
+            text(f"""
+                SELECT st.sentence_id, t.name
+                FROM tags t
+                JOIN sentence_tags st ON st.tag_id = t.id
+                WHERE st.sentence_id IN ({placeholders})
+                ORDER BY t.name
+            """),
+            tag_params,
+        ).fetchall()
+
+        by_sid: dict[int, list[str]] = {}
+        for sid, name in tag_rows:
+            by_sid.setdefault(sid, []).append(name)
+
         for r in rows:
-            tag_rows = conn.execute(
-                text("""SELECT t.name FROM tags t
-                         JOIN sentence_tags st ON st.tag_id = t.id
-                        WHERE st.sentence_id = :i ORDER BY t.name"""),
-                {"i": r["id"]},
-            ).fetchall()
-            r["tag_names"] = ",".join(x[0] for x in tag_rows)
+            r["tag_names"] = ",".join(by_sid.get(r["id"], []))
         return rows
 
 

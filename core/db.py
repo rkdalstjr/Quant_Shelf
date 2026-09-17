@@ -9,6 +9,7 @@ from typing import Iterable, Optional
 import streamlit as st
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
+from sqlalchemy.pool import NullPool
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOCAL_DB_PATH = BASE_DIR / "data" / "quantshelf.db"
@@ -28,7 +29,7 @@ def get_engine() -> Engine:
 
     # SQLite는 스레드 체크 해제 (Streamlit 멀티스레드 대응)
     connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
-    return create_engine(url, connect_args=connect_args, pool_pre_ping=True)
+    return create_engine(url, poolclass=NullPool)
 
 
 @contextmanager
@@ -141,6 +142,7 @@ def get_or_create_book(title: str, author: str = "", year: Optional[int] = None)
         return result.scalar()
 
 
+@st.cache_data(ttl=30, show_spinner=False)
 def list_books() -> list[dict]:
     sql = text("""
         SELECT b.id, b.title, b.author, b.year,
@@ -177,6 +179,7 @@ def get_or_create_tag(name: str, tag_group: str = "", aliases: str = "") -> int:
         return result.scalar()
 
 
+@st.cache_data(ttl=30, show_spinner=False)
 def list_tags() -> list[dict]:
     sql = text("""
         SELECT t.id, t.name, t.tag_group,
