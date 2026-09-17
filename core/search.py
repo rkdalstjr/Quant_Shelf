@@ -6,7 +6,7 @@ from typing import Optional
 
 from sqlalchemy import text
 
-from core.db import get_conn
+from core.db import get_conn, _rows
 
 SORT_MAP = {
     "newest": "s.created_at DESC",
@@ -89,7 +89,7 @@ def search_sentences(
     params["offset"] = offset
 
     with get_conn() as conn:
-        rows = [dict(r._mapping) for r in conn.execute(sql, params)]
+        rows = _rows(conn.execute(sql, params))
         for r in rows:
             tag_rows = conn.execute(
                 text("""SELECT t.name FROM tags t

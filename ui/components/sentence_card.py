@@ -61,7 +61,13 @@ def render(s: dict, *, key_prefix: str = "card", show_actions: bool = True) -> N
         c1, c2, c3, c4, c5 = st.columns([1, 2, 4, 1, 1])
         c1.caption(f"⭐ {s.get('score', 3)}")
         c2.caption(s.get("sentence_type") or "미분류")
-        c3.caption((s.get("created_at") or "")[:10])
+        created = s.get("created_at")
+        created_str = (
+            created.strftime("%Y-%m-%d")
+            if hasattr(created, "strftime")
+            else str(created or "")[:10]
+        )
+        c3.caption(created_str)
         if show_actions:
             if c4.button("✏️", key=f"{key_prefix}_edit_{sid}", help="수정"):
                 st.session_state[EDIT_KEY] = sid

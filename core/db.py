@@ -98,7 +98,14 @@ def init_db() -> None:
 
 
 def _rows(result) -> list[dict]:
-    return [dict(r._mapping) for r in result]
+    out = []
+    for r in result:
+        d = dict(r._mapping)
+        for k, v in d.items():
+            if hasattr(v, "isoformat"):  # datetime, date
+                d[k] = v.isoformat(sep=" ", timespec="seconds")
+        out.append(d)
+    return out
 
 
 # --------------------------------------------------------------------------- books
