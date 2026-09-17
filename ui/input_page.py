@@ -1,4 +1,5 @@
 """문장 입력 페이지."""
+
 from __future__ import annotations
 
 import streamlit as st
@@ -7,10 +8,18 @@ from core import dedupe
 from core.db import get_or_create_book, insert_sentence
 from core.tags import recommend
 from ui.components import book_input, tag_input
+from core.constants import SENTENCE_TYPES
 
 TYPES = [
-    "미분류", "개념", "가정", "조언", "통찰",
-    "시장구조", "멘탈모델", "반례", "커리어",
+    "미분류",
+    "개념",
+    "가정",
+    "조언",
+    "통찰",
+    "시장구조",
+    "멘탈모델",
+    "반례",
+    "커리어",
 ]
 
 SAVED_FLAG = "input_just_saved_id"
@@ -50,19 +59,25 @@ def render() -> None:
     # 4) 유형 / 중요도
     c1, c2 = st.columns([2, 3])
     with c1:
-        sentence_type = st.selectbox("유형", TYPES, key="in_type")
+        sentence_type = st.selectbox("유형", SENTENCE_TYPES, key="in_type")
+
     with c2:
         score = st.slider("중요도", 1, 5, 3, key="in_score")
 
     # 5) 메모
-    note = st.text_area("메모 (선택)", height=80, key="in_note",
-                        placeholder="내 해석, 반례, 관련 경험")
+    note = st.text_area(
+        "메모 (선택)", height=80, key="in_note", placeholder="내 해석, 반례, 관련 경험"
+    )
 
     # 추천 태그 (제안만, 자동 저장 없음)
     if text and len(text) > 20:
         recs = recommend(text)
         if recs:
-            st.info("💡 추천 태그: " + ", ".join(f"`{r}`" for r in recs) + " (제안일 뿐, 자동 저장되지 않습니다)")
+            st.info(
+                "💡 추천 태그: "
+                + ", ".join(f"`{r}`" for r in recs)
+                + " (제안일 뿐, 자동 저장되지 않습니다)"
+            )
 
     st.divider()
 
@@ -83,7 +98,9 @@ def render() -> None:
         # 유사 문장 안내 (차단하지 않음)
         similar = dedupe.find_similar(text, threshold=0.7, limit=3)
         if similar:
-            with st.expander(f"⚠️ 비슷한 문장 {len(similar)}건 (그래도 저장됨)", expanded=False):
+            with st.expander(
+                f"⚠️ 비슷한 문장 {len(similar)}건 (그래도 저장됨)", expanded=False
+            ):
                 for s in similar:
                     st.caption(f"· {s['text'][:100]}… (유사도 {s['similarity']:.0%})")
 

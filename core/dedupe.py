@@ -6,6 +6,7 @@ import re
 from difflib import SequenceMatcher
 from typing import Optional
 
+from sqlalchemy import text
 from core.db import get_conn
 
 
@@ -22,7 +23,7 @@ def find_exact(text: str) -> Optional[dict]:
         return None
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT id, text FROM sentences WHERE deleted_at IS NULL"
+            text("SELECT id, text FROM sentences WHERE deleted_at IS NULL")
         ).fetchall()
     for r in rows:
         if _norm(r["text"]) == key:
@@ -37,7 +38,7 @@ def find_similar(text: str, threshold: float = 0.7, limit: int = 5) -> list[dict
     out: list[dict] = []
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT id, text FROM sentences WHERE deleted_at IS NULL"
+            text("SELECT id, text FROM sentences WHERE deleted_at IS NULL")
         ).fetchall()
     for r in rows:
         ratio = SequenceMatcher(None, key, _norm(r["text"])).ratio()

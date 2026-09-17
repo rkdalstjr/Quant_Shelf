@@ -1,16 +1,16 @@
 """키워드 + 태그 + 책 + 유형 + 중요도 조합 검색."""
+
 from __future__ import annotations
 
 from typing import Optional
 
 from core.db import get_conn
 
-
 SORT_MAP = {
     "newest": "s.created_at DESC",
     "oldest": "s.created_at ASC",
-    "score":  "s.score DESC, s.created_at DESC",
-    "due":    "s.due_date ASC",
+    "score": "s.score DESC, s.created_at DESC",
+    "due": "s.due_date ASC",
 }
 
 
@@ -18,7 +18,7 @@ def search_sentences(
     *,
     keyword: Optional[str] = None,
     tag_ids: Optional[list[int]] = None,
-    tag_mode: str = "AND",           # "AND" | "OR"
+    tag_mode: str = "AND",
     book_id: Optional[int] = None,
     sentence_type: Optional[str] = None,
     min_score: Optional[int] = None,
@@ -28,74 +28,76 @@ def search_sentences(
     offset: int = 0,
 ) -> list[dict]:
     where = ["s.deleted_at IS NULL"]
-    params: list = []
+    params: dict = {}
 
     if keyword:
-        kw = f"%{keyword.strip()}%"
         where.append(
-            "(s.text LIKE ? OR s.note LIKE ? OR s.author LIKE ? OR b.title LIKE ?)"
+            "(s.text LIKE :kw OR s.note LIKE :kw OR s.author LIKE :kw OR b.title LIKE :kw)"
         )
-        params.extend([kw, kw, kw, kw])
+        params["kw"] = f"%{keyword.strip()}%"
 
     if book_id:
-        where.append("s.book_id = ?")
-        params.append(book_id)
+        where.append("s.book_id = :bid")
+        params["bid"] = book_id
 
     if sentence_type:
-        where.append("s.sentence_type = ?")
-        params.append(sentence_type)
+        where.append("s.sentence_type = :stype")
+        params["stype"] = sentence_type
 
     if min_score and min_score > 1:
-        where.append("s.score >= ?")
-        params.append(min_score)
+        where.append("s.score >= :mscore")
+        params["mscore"] = min_score
 
     if status:
-        where.append("s.status = ?")
-        params.append(status)
+        where.append("s.status = :status")
+        params["status"] = status
 
     if tag_ids:
-        placeholders = ",".join("?" * len(tag_ids))
         if tag_mode.upper() == "AND":
-            where.append(
-                f"""s.id IN (
+            where.append(f"""s.id IN (
                     SELECT sentence_id FROM sentence_tags
-                    WHERE tag_id IN ({placeholders})
-                    GROUP BY sentence_id
-                    HAVING COUNT(DISTINCT tag_id) = ?
-                )"""
-            )
-            params.extend(tag_ids)
-            params.append(len(tag_ids))
+                     WHERE tag_id IN :tag_ids
+                     GROUP BY sentence_id
+                    HAVING COUNT(DISTINCT tag_id) = :tag_count
+                )""")
+            params["tag_count"] = len(tag_ids)
         else:
             where.append(
-                f"""s.id IN (
-                    SELECT sentence_id FROM sentence_tags
-                    WHERE tag_id IN ({placeholders})
-                )"""
+                "s.id IN (SELECT sentence_id FROM sentence_tags WHERE tag_id IN :tag_ids)"
             )
-            params.extend(tag_ids)
+        params["tag_ids"] = tuple(tag_ids) if len(tag_ids) > 1 else (tag_ids[0],)
 
     order = SORT_MAP.get(sort, SORT_MAP["newest"])
 
-    sql = f"""
-        SELECT s.*,
+    # GROUP_CONCAT 대신 파이썬에서 태그명 합치기
+    sql = text(f"""
+        SELECT s.id, s.text, s.book_id, s.author, s.page, s.chapter,
+               s.sentence_type, s.score, s.note, s.language, s.status,
+               s.ease, s.interval_days, s.repetitions, s.due_date,
+               s.lapses, s.created_at, s.updated_at, s.deleted_at,
                b.title  AS book_title,
-               b.author AS book_author,
-               (SELECT GROUP_CONCAT(t.name, ',')
-                  FROM tags t
-                  JOIN sentence_tags st ON st.tag_id = t.id
-                 WHERE st.sentence_id = s.id) AS tag_names
+               b.author AS book_author
           FROM sentences s
           LEFT JOIN books b ON b.id = s.book_id
          WHERE {' AND '.join(where)}
          ORDER BY {order}
-         LIMIT ? OFFSET ?
-    """
-    params.extend([limit, offset])
+         LIMIT :limit OFFSET :offset
+    """)
+    params["limit"] = limit
+    params["offset"] = offset
 
     with get_conn() as conn:
-        rows = conn.execute(sql, params).fetchall()
-        return [dict(r) for r in rows]
+        rows = [dict(r._mapping) for r in conn.execute(sql, params)]
+        # 태그명 채우기
+        for r in rows:
+            tag_rows = conn.execute(
+                text("""SELECT t.name FROM tags t
+                         JOIN sentence_tags st ON st.tag_id = t.id
+                        WHERE st.sentence_id = :i ORDER BY t.name"""),
+                {"i": r["id"]},
+            ).fetchall()
+            r["tag_names"] = ",".join(x[0] for x in tag_rows)
+        return rows
 
 
 def count_sentences(**kwargs) -> int:
