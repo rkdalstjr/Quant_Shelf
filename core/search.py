@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+from sqlalchemy import text
+
 from core.db import get_conn
 
 SORT_MAP = {
@@ -54,7 +56,7 @@ def search_sentences(
 
     if tag_ids:
         if tag_mode.upper() == "AND":
-            where.append(f"""s.id IN (
+            where.append("""s.id IN (
                     SELECT sentence_id FROM sentence_tags
                      WHERE tag_id IN :tag_ids
                      GROUP BY sentence_id
@@ -65,11 +67,11 @@ def search_sentences(
             where.append(
                 "s.id IN (SELECT sentence_id FROM sentence_tags WHERE tag_id IN :tag_ids)"
             )
+        # SQLAlchemy expanding bindparam 처리용 tuple
         params["tag_ids"] = tuple(tag_ids) if len(tag_ids) > 1 else (tag_ids[0],)
 
     order = SORT_MAP.get(sort, SORT_MAP["newest"])
 
-    # GROUP_CONCAT 대신 파이썬에서 태그명 합치기
     sql = text(f"""
         SELECT s.id, s.text, s.book_id, s.author, s.page, s.chapter,
                s.sentence_type, s.score, s.note, s.language, s.status,
@@ -88,7 +90,6 @@ def search_sentences(
 
     with get_conn() as conn:
         rows = [dict(r._mapping) for r in conn.execute(sql, params)]
-        # 태그명 채우기
         for r in rows:
             tag_rows = conn.execute(
                 text("""SELECT t.name FROM tags t
