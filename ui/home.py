@@ -1,4 +1,5 @@
 """홈/대시보드."""
+
 from __future__ import annotations
 
 import streamlit as st
@@ -11,6 +12,7 @@ from ui.components import sentence_card
 def render() -> None:
     st.title("📖 QuantShelf")
     st.caption("문장 수집 → 태그 메타데이터 → (예정) SRS · 퀴즈 · TTS · 통계")
+    st.caption("Supabase + Streamlit Cloud")
 
     recent = search_sentences(sort="newest", limit=200)
     books = list_books()
@@ -35,7 +37,9 @@ def render() -> None:
     top_tags = [t for t in tags if (t.get("sentence_count") or 0) > 0][:20]
     if top_tags:
         st.markdown(
-            " ".join(f"`#{t['name']}` <sub>{t['sentence_count']}</sub>" for t in top_tags),
+            " ".join(
+                f"`#{t['name']}` <sub>{t['sentence_count']}</sub>" for t in top_tags
+            ),
             unsafe_allow_html=True,
         )
     else:
