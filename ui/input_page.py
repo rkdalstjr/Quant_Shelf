@@ -114,7 +114,7 @@ def render() -> None:
             )
 
         sid = insert_sentence(
-            text=text,
+            text_content=text,
             book_id=book_id,
             author=book["author"],
             page=book["page"],
