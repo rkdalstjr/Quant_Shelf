@@ -1,6 +1,9 @@
 [theme]
 base = "light"
-primaryColor = "#4F46E5"
+primaryColor = "#4F46E5"          # 보라 계열
+backgroundColor = "#FAF7F0"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#1F2937"
 
 [server]
 headless = true
