@@ -3,7 +3,7 @@
 import streamlit as st
 
 from core.db import init_db
-from ui import home, input_page, library_page
+from ui import home, input_page, library_page, trash_page
 
 st.set_page_config(page_title="QuantShelf", page_icon="📖", layout="wide")
 
@@ -19,6 +19,7 @@ PAGES = {
     "🏠 홈": home.render,
     "📥 문장 입력": input_page.render,
     "📚 라이브러리": library_page.render,
+    "🗑️ 휴지통": trash_page.render,
 }
 
 with st.sidebar:

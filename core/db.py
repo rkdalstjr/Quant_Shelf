@@ -1,5 +1,13 @@
 """DB 연결 · 스키마 · CRUD — SQLite(로컬) / PostgreSQL(클라우드) 자동 전환."""
 
+# ──────────────────────────────────────────────────────────────
+# 🚫 정책: sentences 테이블의 물리적 DELETE는 절대 수행하지 않는다.
+#   - 삭제는 deleted_at 갱신(소프트 삭제)만 허용
+#   - 복구는 deleted_at = NULL
+#   - 영구 삭제(purge) 함수는 의도적으로 존재하지 않는다
+#   - 이 원칙을 어기는 코드(예: "DELETE FROM sentences")를 추가하지 말 것
+# ──────────────────────────────────────────────────────────────
+
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -339,3 +347,71 @@ def set_sentence_tags(sid: int, tag_ids: Iterable[int]) -> None:
                 ),
                 {"s": sid, "t": tid},
             )
+
+
+def restore_sentence(sid: int) -> None:
+    """휴지통에서 복구. deleted_at을 NULL로 되돌린다."""
+    with get_conn() as conn:
+        conn.execute(
+            text("""
+                UPDATE sentences
+                   SET deleted_at = NULL,
+                       updated_at = CURRENT_TIMESTAMP
+                 WHERE id = :i
+            """),
+            {"i": sid},
+        )
+
+
+def list_deleted_sentences(limit: int = 200, offset: int = 0) -> list[dict]:
+    """휴지통 목록. deleted_at 내림차순."""
+    sql = text("""
+        SELECT s.id, s.text, s.book_id, s.author, s.page, s.chapter,
+               s.sentence_type, s.score, s.note, s.language, s.status,
+               s.created_at, s.updated_at, s.deleted_at,
+               b.title  AS book_title,
+               b.author AS book_author
+          FROM sentences s
+          LEFT JOIN books b ON b.id = s.book_id
+         WHERE s.deleted_at IS NOT NULL
+         ORDER BY s.deleted_at DESC
+         LIMIT :limit OFFSET :offset
+    """)
+    with get_conn() as conn:
+        rows = _rows(conn.execute(sql, {"limit": limit, "offset": offset}))
+        _attach_tags(conn, rows)
+        return rows
+
+
+def count_deleted_sentences() -> int:
+    with get_conn() as conn:
+        return int(
+            conn.execute(
+                text("SELECT COUNT(*) FROM sentences WHERE deleted_at IS NOT NULL")
+            ).scalar()
+            or 0
+        )
+
+
+def _attach_tags(conn, rows: list[dict]) -> None:
+    """rows에 tag_names 필드를 채운다. N+1 회피(한 번에 조회)."""
+    if not rows:
+        return
+    sids = [r["id"] for r in rows]
+    placeholders = ",".join(f":s{i}" for i in range(len(sids)))
+    params = {f"s{i}": sid for i, sid in enumerate(sids)}
+    tag_rows = conn.execute(
+        text(f"""
+            SELECT st.sentence_id, t.name
+              FROM tags t
+              JOIN sentence_tags st ON st.tag_id = t.id
+             WHERE st.sentence_id IN ({placeholders})
+             ORDER BY t.name
+        """),
+        params,
+    ).fetchall()
+    by_sid: dict[int, list[str]] = {}
+    for sid, name in tag_rows:
+        by_sid.setdefault(sid, []).append(name)
+    for r in rows:
+        r["tag_names"] = ",".join(by_sid.get(r["id"], []))

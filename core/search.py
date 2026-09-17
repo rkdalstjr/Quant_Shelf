@@ -6,7 +6,7 @@ from typing import Optional
 
 from sqlalchemy import text
 
-from core.db import get_conn, _rows
+from core.db import _attach_tags, _rows, get_conn
 
 SORT_MAP = {
     "newest": "s.created_at DESC",
@@ -67,7 +67,6 @@ def search_sentences(
             where.append(
                 "s.id IN (SELECT sentence_id FROM sentence_tags WHERE tag_id IN :tag_ids)"
             )
-        # SQLAlchemy expanding bindparam 처리용 tuple
         params["tag_ids"] = tuple(tag_ids) if len(tag_ids) > 1 else (tag_ids[0],)
 
     order = SORT_MAP.get(sort, SORT_MAP["newest"])
@@ -89,30 +88,8 @@ def search_sentences(
     params["offset"] = offset
 
     with get_conn() as conn:
-        rows = [dict(r._mapping) for r in conn.execute(sql, params)]
-        if not rows:
-            return []
-
-        sids = [r["id"] for r in rows]
-        placeholders = ",".join(f":s{i}" for i in range(len(sids)))
-        tag_params = {f"s{i}": sid for i, sid in enumerate(sids)}
-        tag_rows = conn.execute(
-            text(f"""
-                SELECT st.sentence_id, t.name
-                FROM tags t
-                JOIN sentence_tags st ON st.tag_id = t.id
-                WHERE st.sentence_id IN ({placeholders})
-                ORDER BY t.name
-            """),
-            tag_params,
-        ).fetchall()
-
-        by_sid: dict[int, list[str]] = {}
-        for sid, name in tag_rows:
-            by_sid.setdefault(sid, []).append(name)
-
-        for r in rows:
-            r["tag_names"] = ",".join(by_sid.get(r["id"], []))
+        rows = _rows(conn.execute(sql, params))
+        _attach_tags(conn, rows)
         return rows
 
 

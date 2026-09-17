@@ -72,8 +72,19 @@ def render(s: dict, *, key_prefix: str = "card", show_actions: bool = True) -> N
             if c4.button("✏️", key=f"{key_prefix}_edit_{sid}", help="수정"):
                 st.session_state[EDIT_KEY] = sid
                 st.rerun()
-            if c5.button("🗑️", key=f"{key_prefix}_del_{sid}", help="삭제"):
+            if c5.button(
+                "🗑️",
+                key=f"{key_prefix}_del_{sid}",
+                help="휴지통으로 이동 (복구 가능)",
+            ):
                 delete_sentence(sid)
+                try:
+                    from ui.components.cache import invalidate_all
+
+                    invalidate_all()
+                except Exception:
+                    pass
+                st.toast(f"문장 #{sid}을(를) 휴지통으로 이동했습니다.")
                 st.rerun()
 
 
